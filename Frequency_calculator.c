@@ -58,8 +58,8 @@ int main(void) {
     if (audiop->rarc > 0) {
       value = audiop->ldata;
       sound_array[sound_cursor] = value;
-      sound_cursor += 1;
     }
+    sound_cursor += 1;
     if (sound_cursor >= SIZE_ARRAY) break;
   }
 
@@ -91,9 +91,13 @@ int main(void) {
         *(audio_ptr + 3) = ((int)buffer[buffer_ptr]) << 16;
       }
     }
-    if (buffer_ptr >= BUFFER_SIZE) {
-      buffer_ptr = 0;
+    // if (buffer_ptr >= BUFFER_SIZE) {
+    //   buffer_ptr = 0;
+    // }
+    if (buffer_ptr >= BUFFER_SIZE) {  // Check if all data has been written
+      break;                          // Exit loop
     }
+    return 0;
   }
   // while (1) {
   //     if (audiop->rarc > 0) { // Check for data to read
