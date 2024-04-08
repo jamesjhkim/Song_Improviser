@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 // Assume MAX_SAMPLES and your audio sample array are defined as before
 // #define MAX_SAMPLES 44100
