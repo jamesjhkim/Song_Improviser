@@ -45,8 +45,21 @@
 #define C6 1046.500
 #define Cs6 1108.728
 #define PI 3.14159265358979323846
+#define SINE_TABLE_SIZE 1024
 
 volatile int *audio_ptr = (int *)AUDIO_BASE;
+double sineLookupTable[SINE_TABLE_SIZE];
+
+void fillSineLookupTable() {
+  for (int i = 0; i < SINE_TABLE_SIZE; ++i) {
+    sineLookupTable[i] = sin(2 * PI * i / SINE_TABLE_SIZE);
+  }
+}
+double getSineFromTable(double phase) {
+  // Assuming phase is given in radians and normalized to the range [0, 2π)
+  int index = (int)(phase * SINE_TABLE_SIZE / (2 * PI)) % SINE_TABLE_SIZE;
+  return (double)sineLookupTable[index];
+}
 
 // 2:25
 int main() {
@@ -181,21 +194,40 @@ int main() {
 
   int noteDurationIndex = 0;
 
+  fillSineLookupTable();
+
   // MELODY
   double freq1, period1, sample1;
+  // for (int noteIdx = 0; noteIdx < 38; noteIdx++) {
+  //   freq1 = notesFrequencies[noteIdx][0];
+  //   period1 = 8000 / freq1;
+
+  //   // int noteDuration =tempo * swingDurations[noteDurationIndex %
+  //   // (sizeof(swingDurations) / sizeof(swingDurations[0]))];
+  //   int noteDuration = 8000 * notesFrequencies[noteIdx][1] / tempo;
+  //   noteDurationIndex++;
+
+  //   // Fill melody and silence
+  //   for (i = 0; i < noteDuration - silenceDuration; i++) {
+  //     sample1 = volume_1 * sin(2 * PI * i / period1);
+  //     buffer_1[idx++] = (short)(sample1);
+  //   }
+  //   for (i = 0; i < silenceDuration; i++) {
+  //     buffer_1[idx++] = 0;
+  //   }
+  // }
+  double sineValue, phase;
   for (int noteIdx = 0; noteIdx < 38; noteIdx++) {
+    phase = 0.0;
     freq1 = notesFrequencies[noteIdx][0];
     period1 = 8000 / freq1;
-
-    // int noteDuration =tempo * swingDurations[noteDurationIndex %
-    // (sizeof(swingDurations) / sizeof(swingDurations[0]))];
+    double phaseIncrement = 2 * PI / period1;
     int noteDuration = 8000 * notesFrequencies[noteIdx][1] / tempo;
-    noteDurationIndex++;
-
-    // Fill melody and silence
     for (i = 0; i < noteDuration - silenceDuration; i++) {
-      sample1 = volume_1 * sin(2 * PI * i / period1);
-      buffer_1[idx++] = (short)(sample1);
+      sineValue = volume_1 * getSineFromTable(phase);
+      phase += phaseIncrement;
+      buffer_1[idx++] = (short)(sineValue);
+      if (phase >= 2 * PI) phase -= 2 * PI;
     }
     for (i = 0; i < silenceDuration; i++) {
       buffer_1[idx++] = 0;
@@ -204,15 +236,17 @@ int main() {
 
   // BASS
   double freq2_1, freq2_2, freq2_3, period2_1, period2_2, period2_3, sample2_1,
-      sample2_2, sample2_3;
+      sample2_2, sample2_3, phase2_1, phase2_2, phase2_3;
   for (int noteIdx = 0; noteIdx < 24; noteIdx++) {
     freq2_1 = bassLineFrequencies[noteIdx][0];
     freq2_2 = bassLineFrequencies[noteIdx][1];
     freq2_3 = bassLineFrequencies[noteIdx][2];
-
     period2_1 = 8000 / freq2_1;
     period2_2 = 8000 / freq2_2;
     period2_3 = 8000 / freq2_3;
+    phase2_1 = 0.0;
+    phase2_2 = 0.0;
+    phase2_3 = 0.0;
 
     // int noteDuration =tempo * swingDurations[noteDurationIndex %
     // (sizeof(swingDurations) / sizeof(swingDurations[0]))];
@@ -221,14 +255,29 @@ int main() {
 
     // Fill bass and silence
     for (i = 0; i < noteDuration - silenceDuration; i++) {
-      sample2_1 = volume_2 * sin(2 * PI * i / period2_1);
-      sample2_2 = volume_2 * sin(2 * PI * i / period2_2);
-      sample2_3 = volume_2 * sin(2 * PI * i / period2_3);
+      sample2_1 = volume_2 * getSineFromTable(phase2_1);
+      sample2_2 = volume_2 * getSineFromTable(phase2_2);
+      sample2_3 = volume_2 * getSineFromTable(phase2_3);
+      phase2_1 += 2 * PI / period2_1;
+      phase2_2 += 2 * PI / period2_2;
+      phase2_3 += 2 * PI / period2_3;
       buffer_2[idy++] = (short)((sample2_1 + sample2_2 + sample2_3) / 3);
+      if (phase2_1 >= 2 * PI) phase -= 2 * PI;
+      if (phase2_2 >= 2 * PI) phase -= 2 * PI;
+      if (phase2_3 >= 2 * PI) phase -= 2 * PI;
     }
     for (i = 0; i < silenceDuration; i++) {
       buffer_2[idy++] = 0;
     }
+    // for (i = 0; i < noteDuration - silenceDuration; i++) {
+    //   sample2_1 = volume_2 * sin(2 * PI * i / period2_1);
+    //   sample2_2 = volume_2 * sin(2 * PI * i / period2_2);
+    //   sample2_3 = volume_2 * sin(2 * PI * i / period2_3);
+    //   buffer_2[idy++] = (short)((sample2_1 + sample2_2 + sample2_3) / 3);
+    // }
+    // for (i = 0; i < silenceDuration; i++) {
+    //   buffer_2[idy++] = 0;
+    // }
   }
 
   // Playback loop
