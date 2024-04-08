@@ -7,9 +7,10 @@
 #define SAMPLE_RATE 8000
 #define AUDIO_BASE 0xFF203040
 #define DAMPING_FACTOR 0.3  // Damping factor M: 0 < M < 1
-#define SIZE_ARRAY \
-  (int)(8000 *     \
-        1.0)  // Corresponding samples to delay: (Output sample rate * delay)
+#define PI 3.14159265358979323846
+#define SIZE_ARRAY (int)(8000 * 1.0)
+
+volatile int *audio_ptr = (int *)AUDIO_BASE;
 
 struct audio_t {
   volatile unsigned int control;
@@ -60,8 +61,39 @@ int main(void) {
       sound_cursor += 1;
     }
   }
+
   float estimatedFrequency =
       estimateFrequencyByZeroCrossing(sound_array, SIZE_ARRAY);
+
+  int sampling_freq = 8000;
+  int BUFFER_SIZE = 10 * sampling_freq;
+  short int buffer[BUFFER_SIZE];
+  memset(buffer, 0, sizeof(short int) * BUFFER_SIZE);
+
+  double freq, period, sample;
+  int idx = 0;
+  freq = (double)estimatedFrequency;
+  period = sampling_freq / freq;
+  for (int i = 0; i < BUFFER_SIZE - 1000; i++) {
+    sample = 300 * sin(2 * PI * i / period);
+    buffer[idx++] = (short)(sample);
+  }
+  for (int i = 0; i < 1000; i++) {
+    buffer[idx++] = 0;
+  }
+  idx = 0;
+  int buffer_ptr = 0;
+  while (1) {
+    int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
+    if (out_fifo_1 >= 128) {
+      for (int j = 0; j < 128; j++) {
+        *(audio_ptr + 3) = ((int)buffer[buffer_ptr]) << 16;
+      }
+    }
+    if (buffer_ptr >= BUFFER_SIZE) {
+      buffer_ptr = 0;
+    }
+  }
   // while (1) {
   //     if (audiop->rarc > 0) { // Check for data to read
   //             //Input FIFO
