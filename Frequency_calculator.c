@@ -54,12 +54,13 @@ int main(void) {
   for (int count = 0; count < SIZE_ARRAY; count++) {
     sound_array[count] = 0;
   }
-  while (sound_cursor < SIZE_ARRAY) {
+  while (1) {
     if (audiop->rarc > 0) {
       value = audiop->ldata;
       sound_array[sound_cursor] = value;
       sound_cursor += 1;
     }
+    if (sound_cursor >= SIZE_ARRAY) break;
   }
 
   float estimatedFrequency =
