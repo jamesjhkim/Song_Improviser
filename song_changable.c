@@ -112,10 +112,10 @@ int main() {
       // Third Measure 8 Notes
       {noteFrequencies[mel3 + 7], 0.5},
       {noteFrequencies[mel3 + 5], 0.5},
-      {noteFrequencies[mel3 + 4], 0.5},
-      {noteFrequencies[mel3 + 4], 0.5},
+      {noteFrequencies[mel3 + 3], 0.5},
+      {noteFrequencies[mel3 + 3], 0.5},
       {noteFrequencies[mel4 + 5], 0.5},
-      {noteFrequencies[mel4 + 4], 0.5},
+      {noteFrequencies[mel4 + 3], 0.5},
       {noteFrequencies[mel4 + 2], 0.5},
       {noteFrequencies[mel4 + 9], 0.5},
       // Fourth Measure 5 Notes
