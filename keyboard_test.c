@@ -115,41 +115,8 @@ int main() {
     memset(buffer1_2, 0, sizeof(short int) * BUFFER_SIZE1_2);
 
     int noteDurationIndex = 0;
-    
-    // Fill the buffers with notes and silences
-    for (int noteIdx = 0; noteIdx < notesLength1; noteIdx++) {
-        double freq1 = song1_treble[noteIdx];
-        int period1 = 8000 / freq1;
-        double freq2 = song1_bass[noteIdx % bassLength1];
-        int period2 = 8000 / freq2;
-
-        int noteDuration = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
-        noteDurationIndex++;
-
-        // Fill melody and silence
-        for (int i = 0; i < noteDuration; i++) {
-            if (idx < BUFFER_SIZE1_1) {
-                double sample1 = volume_1 * sin(2 * M_PI * i / period1);
-                buffer1_1[idx++] = (short)(sample1);
-            }
-        }
-        for (int i = 0; i < silenceDuration; i++) {
-            if (idx < BUFFER_SIZE1_1) buffer1_1[idx++] = 0;
-        }
-
-        // Fill bass and silence
-        for (int i = 0; i < noteDuration; i++) {
-            if (idy < BUFFER_SIZE1_2) {
-                double sample2 = volume_2 * sin(2 * M_PI * i / period2);
-                buffer1_2[idy++] = (short)(sample2);
-            }
-        }
-        for (int i = 0; i < silenceDuration; i++) {
-            if (idy < BUFFER_SIZE1_2) buffer1_2[idy++] = 0;
-        }
-    }
 	
-	/*
+	
 	int notesLength2 = sizeof(song2_treble) / sizeof(song2_treble[0]);
     int bassLength2 = sizeof(song2_bass) / sizeof(song2_bass[0]);
     //int swingDurations[] = {4000, 2800};
@@ -173,39 +140,6 @@ int main() {
 
     //int noteDurationIndex = 0;
     
-    // Fill the buffers with notes and silences
-    for (int noteIdx = 0; noteIdx < notesLength2; noteIdx++) {
-        double freq1 = song2_treble[noteIdx];
-        int period1 = 8000 / freq1;
-        double freq2 = song2_bass[noteIdx % bassLength2];
-        int period2 = 8000 / freq2;
-
-        int noteDuration = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
-        noteDurationIndex++;
-
-        // Fill melody and silence
-        for (int i = 0; i < noteDuration; i++) {
-            if (idx < BUFFER_SIZE2_1) {
-                double sample1 = volume_1 * sin(2 * M_PI * i / period1);
-                buffer2_1[idx++] = (short)(sample1);
-            }
-        }
-        for (int i = 0; i < silenceDuration; i++) {
-            if (idx < BUFFER_SIZE2_1) buffer2_1[idx++] = 0;
-        }
-
-        // Fill bass and silence
-        for (int i = 0; i < noteDuration; i++) {
-            if (idy < BUFFER_SIZE2_2) {
-                double sample2 = volume_2 * sin(2 * M_PI * i / period2);
-                buffer2_2[idy++] = (short)(sample2);
-            }
-        }
-        for (int i = 0; i < silenceDuration; i++) {
-            if (idy < BUFFER_SIZE2_2) buffer2_2[idy++] = 0;
-        }
-    }
-	*/
 	
 	while (1) {
 		PS2_data = *(PS2_ptr);	
@@ -216,41 +150,116 @@ int main() {
 			//byte2 = byte3;
 			byte3 = PS2_data & 0xFF;
 			// Handle key press
-			switch (byte3) {
-					// Key '1'
-				case 0x16:
-					*LED_ptr = 0b0000000001; //LEDS off
+		}
+		    // Fill the buffers with notes and silences
+		for (int noteIdx = 0; noteIdx < notesLength1; noteIdx++) {
+			double freq1 = song1_treble[noteIdx];
+			int period1 = 8000 / freq1;
+			double freq2 = song1_bass[noteIdx % bassLength1];
+			int period2 = 8000 / freq2;
 
-					int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
-					int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
+			int noteDuration1 = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
+			noteDurationIndex++;
 
-					// Melody output (left speaker)
-					if (out_fifo_1 >= 128) {
-						for (int j = 0; j < 128; j++) {
-							*(audio_ptr + 3) = ((int)buffer1_1[buffer_ptr_1]) << 16;
-							buffer_ptr_1 = (buffer_ptr_1 + 1) % BUFFER_SIZE1_1;
-						}
+			// Fill melody and silence
+			for (int i = 0; i < noteDuration1; i++) {
+				if (idx < BUFFER_SIZE1_1) {
+					double sample1 = volume_1 * sin(2 * M_PI * i / period1);
+					buffer1_1[idx++] = (short)(sample1);
+				}
+			}
+			for (int i = 0; i < silenceDuration; i++) {
+				if (idx < BUFFER_SIZE1_1) buffer1_1[idx++] = 0;
+			}
+
+			// Fill bass and silence
+			for (int i = 0; i < noteDuration1; i++) {
+				if (idy < BUFFER_SIZE1_2) {
+					double sample2 = volume_2 * sin(2 * M_PI * i / period2);
+					buffer1_2[idy++] = (short)(sample2);
+				}
+			}
+			for (int i = 0; i < silenceDuration; i++) {
+				if (idy < BUFFER_SIZE1_2) buffer1_2[idy++] = 0;
+			}
+		}
+		
+		
+		// Fill the buffers with notes and silences
+		for (int noteIdx = 0; noteIdx < notesLength2; noteIdx++) {
+			double freq1 = song2_treble[noteIdx];
+			int period1 = 8000 / freq1;
+			double freq2 = song2_bass[noteIdx % bassLength2];
+			int period2 = 8000 / freq2;
+
+			int noteDuration2 = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
+			noteDurationIndex++;
+
+			// Fill melody and silence
+			for (int i = 0; i < noteDuration2; i++) {
+				if (idx < BUFFER_SIZE2_1) {
+					double sample1 = volume_1 * sin(2 * M_PI * i / period1);
+					buffer2_1[idx++] = (short)(sample1);
+				}
+			}
+			for (int i = 0; i < silenceDuration; i++) {
+				if (idx < BUFFER_SIZE2_1) buffer2_1[idx++] = 0;
+			}
+
+			// Fill bass and silence
+			for (int i = 0; i < noteDuration2; i++) {
+				if (idy < BUFFER_SIZE2_2) {
+					double sample2 = volume_2 * sin(2 * M_PI * i / period2);
+					buffer2_2[idy++] = (short)(sample2);
+				}
+			}
+			for (int i = 0; i < silenceDuration; i++) {
+				if (idy < BUFFER_SIZE2_2) buffer2_2[idy++] = 0;
+			}
+		}
+	
+		
+		switch (byte3) {
+				// Key '1'
+			case 0x16:
+				*LED_ptr = 0b0000000001; //LEDS off
+
+				buffer_ptr_1 = 0;
+				buffer_ptr_2 = 0;
+				
+				int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
+				int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
+
+				// Melody output (left speaker)
+				if (out_fifo_1 >= 128) {
+					for (int j = 0; j < 128; j++) {
+						*(audio_ptr + 3) = ((int)buffer1_1[buffer_ptr_1]) << 16;
+						buffer_ptr_1 = (buffer_ptr_1 + 1) % BUFFER_SIZE1_1;
 					}
+				}
 
-					// Bass output (right speaker)
-					if (out_fifo_2 >= 128) {
-						for (int j = 0; j < 128; j++) {
-							*(audio_ptr + 2) = ((int)buffer1_2[buffer_ptr_2]) << 16;
-							buffer_ptr_2 = (buffer_ptr_2 + 1) % BUFFER_SIZE1_2;
-						}
+				// Bass output (right speaker)
+				if (out_fifo_2 >= 128) {
+					for (int j = 0; j < 128; j++) {
+						*(audio_ptr + 2) = ((int)buffer1_2[buffer_ptr_2]) << 16;
+						buffer_ptr_2 = (buffer_ptr_2 + 1) % BUFFER_SIZE1_2;
 					}
-					
-					*(audio_ptr + 1) = *(audio_ptr + 1) ^ 0b1000; // Set the FIFO reset bit
-					//*audio_control_reg &= ~(1 << FIFO_RESET_BIT); // Clear the FIFO reset bit (if necessary)
-					break;
+				}
 
-					// Key '2'
-				case 0x1E: 
-					*LED_ptr = 0b0000000010; //LEDS off
-					//int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
-					//int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
-					
-					/*
+				*(audio_ptr + 1) = *(audio_ptr + 1) | 0x00000002; // Set FIFO reset bit to 1
+        		*(audio_ptr + 1) = *(audio_ptr + 1) & (~0x00000002); // Then clear it back to 0
+				
+				break;
+
+				// Key '2'
+			case 0x1E: 
+				*LED_ptr = 0b0000000010; //LEDS off
+				//int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
+				//int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
+
+				buffer_ptr_1 = 0;
+				buffer_ptr_2 = 0;
+				
 					// Melody output (left speaker)
 					if (out_fifo_1 >= 128) {
 						for (int j = 0; j < 128; j++) {
@@ -266,51 +275,42 @@ int main() {
 							buffer_ptr_2 = (buffer_ptr_2 + 1) % BUFFER_SIZE2_2;
 						}
 					}
-					*(audio_ptr + 1) = *(audio_ptr + 1) ^ 0b1000; // Set the FIFO reset bit
+				*(audio_ptr + 1) = *(audio_ptr + 1) | 0x00000002; // Set FIFO reset bit to 1
+        		*(audio_ptr + 1) = *(audio_ptr + 1) & (~0x00000002); // Then clear it back to 0
 					
-					*/
-					break;
-					// Key '3'
-				case 0x26: 
-					*LED_ptr = 0b0000000100; //LEDS off
-					break;
-					// Key '4'
-				case 0x25:
-					*LED_ptr = 0b0000001000; //LEDS off
-					break;
-					// Key 'Space'
-				case 0x2E: 
-					break;
-					// Key 'Enter'
-				case 0x5A: 
-					*LED_ptr = 0b1111111111; //LEDS on
-					//play_song();
-					break;
-					// Key 'a'
-				case 0x1C: 
-					//play_song();
-					break;
-					// Key 'b'
-				case 0x32: 
-					break;
-					// Key 'c'
-				case 0x21: 
-					break;
-				default:
-					break;
-			}
+				break;
+				// Key '3'
+			case 0x26: 
+				*LED_ptr = 0b0000000100; //LEDS off
+				break;
+				// Key '4'
+			case 0x25:
+				*LED_ptr = 0b0000001000; //LEDS off
+				break;
+				// Key 'Space'
+			case 0x2E: 
+				break;
+				// Key 'Enter'
+			case 0x5A: 
+				*LED_ptr = 0b1111111111; //LEDS on
+				//play_song();
+				break;
+				// Key 'a'
+			case 0x1C: 
+				//play_song();
+				break;
+				// Key 'b'
+			case 0x32: 
+				break;
+				// Key 'c'
+			case 0x21: 
+				break;
+			default:
+				break;
 		}
 		// Display last byte on Red LEDs
 		*RLEDs = byte3;
     }
 
     return 0;
-}
-
-// Example function to display a message on the seven-segment display
-void HEX_display(const char* text) {
-    volatile int *HEX_ptr = HEX_BASE;
-    while (*text) {
-        *HEX_ptr++ = *text++; // Hypothetical implementation
-    }
 }
