@@ -1,17 +1,10 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <math.h>
 #include <string.h>
-	
-#define RLEDs ((volatile long *) 0xFF200000)
-#define AUDIO_BASE 0xFF203040
-#define HEX_BASE ((volatile int *) 0xFF200020) // Example base address
-	
-volatile int *audio_ptr = (int *)AUDIO_BASE;
-volatile int *LED_ptr = (int*) 0xFF200000;
 
-#define C1 32.703
+#define BREAK 0
+#define C1 5
 #define C3 130.813
 #define Cs3 138.591
 #define D3 146.832
@@ -50,267 +43,90 @@ volatile int *LED_ptr = (int*) 0xFF200000;
 #define B5 987.764
 #define C6 1046.500
 #define Cs6 1108.728
+#define PI 3.14159265358979323846
+#define SINE_TABLE_SIZE 1024
+#define SAMPLE_RATE 8000
+#define AUDIO_BASE 0xFF203040
+#define RLEDs ((volatile long *) 0xFF200000)
 
-double song1_treble[] = {C4, C4, D4, C4, F4, E4, 
-						 C4, C4, D4, C4, G4, F4,
-						 C4, C4, C5, A4, F4, E4, D4, 
-						 As4, As4, A4, F4, G4, F4};
+volatile int *audio_ptr = (int *)AUDIO_BASE;
+volatile int *LED_ptr = (int *)RLEDs;
 
-double song1_bass[] =  {C3, C3, C3, C3, C3, C3,
-						G3, G3, G3, G3, G3, G3,
-						C3, C3, F3, F3, C3, C3, C3,
-						G3, G3, G3, C3, G3, C3};
+double sineLookupTable[SINE_TABLE_SIZE];
 
-double song2_treble[] = {
-    A4, A4, A4, G4, F4, // "Fly me to the moon"
-    E4, F4, G4,        // "Let me play among the stars"
-    A4, A4, G4, F4,    // "Let me see what spring is like"
-    E4, G4, A4, A4,    // "On Jupiter and Mars"
-    G4, F4             // "In other words"
-    // Add more notes as needed
-};
+void fillSineLookupTable() {
+    for (int i = 0; i < SINE_TABLE_SIZE; ++i) {
+        sineLookupTable[i] = sin(2 * PI * i / SINE_TABLE_SIZE);
+    }
+}
 
-// Accompaniment (Bass) notes for "Fly Me to the Moon"
-double song2_bass[] = {
-    A3, D3, G3, C3, F3, // Basic chord roots for the song's progression
-    B3, E3, A3, D3, G3,
-    C3, F3, B3, E3, A3,
-    // Add more notes or adjust to fit your arrangement
-};
-
-//void play_song();
+double getSineFromTable(double phase) {
+    int index = (int)(phase * SINE_TABLE_SIZE / (2 * PI)) % SINE_TABLE_SIZE;
+    return sineLookupTable[index];
+}
 
 int main() {
-	unsigned char byte1 = 0;
-	unsigned char byte2 = 0;
-	unsigned char byte3 = 0;
-	
-  	volatile int * PS2_ptr = (int *) 0xFF200100;  // PS/2 port address
+    fillSineLookupTable();
 
-	int PS2_data, RVALID;
+    int volume = 3000;
 
-// Song 1
-    int buffer_ptr_1 = 0;
-    int buffer_ptr_2 = 0;
-	
-    int notesLength1 = sizeof(song1_treble) / sizeof(song1_treble[0]);
-    int bassLength1 = sizeof(song1_bass) / sizeof(song1_bass[0]);
-    int swingDurations[] = {5600, 2800};
-    int volume_1 = 3000;
-    int volume_2 = 9000;
+    double notesFrequencies[] = {C4, E4, G4, C5}; // Melody
+    int notesCount = sizeof(notesFrequencies) / sizeof(notesFrequencies[0]);
+    int durationInSeconds = 2; // Note duration
 
-    // Define a silence duration. Let's say 5% of your swing duration for simplicity.
-    int silenceDuration = swingDurations[0] * 0.05;
-
-    // Adjust buffer size calculation to account for additional silence
-    int BUFFER_SIZE1_1 = ((8000 + silenceDuration) * notesLength1) / 2; // Assuming each note duration includes the silence duration
-    int BUFFER_SIZE1_2 = ((8000 + silenceDuration) * bassLength1) / 2;
-
-    short int buffer1_1[BUFFER_SIZE1_1];
-    short int buffer1_2[BUFFER_SIZE1_2];
-    int idx = 0, idy = 0;
-	
-    // Initialize buffers
-    memset(buffer1_1, 0, sizeof(short int) * BUFFER_SIZE1_1);
-    memset(buffer1_2, 0, sizeof(short int) * BUFFER_SIZE1_2);
-
-    int noteDurationIndex = 0;
-	
-	
-	int notesLength2 = sizeof(song2_treble) / sizeof(song2_treble[0]);
-    int bassLength2 = sizeof(song2_bass) / sizeof(song2_bass[0]);
-    //int swingDurations[] = {4000, 2800};
-    //int volume_1 = 3000;
-    //int volume_2 = 9000;
-
-    // Define a silence duration. Let's say 5% of your swing duration for simplicity.
-    //int silenceDuration = swingDurations[0] * 0.05;
-
-    // Adjust buffer size calculation to account for additional silence
-    int BUFFER_SIZE2_1 = ((8000 + silenceDuration) * notesLength2) / 2; // Assuming each note duration includes the silence duration
-    int BUFFER_SIZE2_2 = ((8000 + silenceDuration) * bassLength2) / 2;
-
-    short int buffer2_1[BUFFER_SIZE2_1];
-    short int buffer2_2[BUFFER_SIZE2_2];
-    //int idx = 0, idy = 0;
-	
-    // Initialize buffers
-    memset(buffer2_1, 0, sizeof(short int) * BUFFER_SIZE2_1);
-    memset(buffer2_2, 0, sizeof(short int) * BUFFER_SIZE2_2);
-
-    //int noteDurationIndex = 0;
-    
-	
-	while (1) {
-		PS2_data = *(PS2_ptr);	
-		RVALID = (PS2_data & 0x8000);	
-		if (RVALID != 0)
-		{
-			//byte1 = byte2;
-			//byte2 = byte3;
-			byte3 = PS2_data & 0xFF;
-			// Handle key press
-		}
-		    // Fill the buffers with notes and silences
-		for (int noteIdx = 0; noteIdx < notesLength1; noteIdx++) {
-			double freq1 = song1_treble[noteIdx];
-			int period1 = 8000 / freq1;
-			double freq2 = song1_bass[noteIdx % bassLength1];
-			int period2 = 8000 / freq2;
-
-			int noteDuration1 = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
-			noteDurationIndex++;
-
-			// Fill melody and silence
-			for (int i = 0; i < noteDuration1; i++) {
-				if (idx < BUFFER_SIZE1_1) {
-					double sample1 = volume_1 * sin(2 * M_PI * i / period1);
-					buffer1_1[idx++] = (short)(sample1);
-				}
-			}
-			for (int i = 0; i < silenceDuration; i++) {
-				if (idx < BUFFER_SIZE1_1) buffer1_1[idx++] = 0;
-			}
-
-			// Fill bass and silence
-			for (int i = 0; i < noteDuration1; i++) {
-				if (idy < BUFFER_SIZE1_2) {
-					double sample2 = volume_2 * sin(2 * M_PI * i / period2);
-					buffer1_2[idy++] = (short)(sample2);
-				}
-			}
-			for (int i = 0; i < silenceDuration; i++) {
-				if (idy < BUFFER_SIZE1_2) buffer1_2[idy++] = 0;
-			}
-		}
-		
-		
-		// Fill the buffers with notes and silences
-		for (int noteIdx = 0; noteIdx < notesLength2; noteIdx++) {
-			double freq1 = song2_treble[noteIdx];
-			int period1 = 8000 / freq1;
-			double freq2 = song2_bass[noteIdx % bassLength2];
-			int period2 = 8000 / freq2;
-
-			int noteDuration2 = swingDurations[noteDurationIndex % (sizeof(swingDurations) / sizeof(swingDurations[0]))];
-			noteDurationIndex++;
-
-			// Fill melody and silence
-			for (int i = 0; i < noteDuration2; i++) {
-				if (idx < BUFFER_SIZE2_1) {
-					double sample1 = volume_1 * sin(2 * M_PI * i / period1);
-					buffer2_1[idx++] = (short)(sample1);
-				}
-			}
-			for (int i = 0; i < silenceDuration; i++) {
-				if (idx < BUFFER_SIZE2_1) buffer2_1[idx++] = 0;
-			}
-
-			// Fill bass and silence
-			for (int i = 0; i < noteDuration2; i++) {
-				if (idy < BUFFER_SIZE2_2) {
-					double sample2 = volume_2 * sin(2 * M_PI * i / period2);
-					buffer2_2[idy++] = (short)(sample2);
-				}
-			}
-			for (int i = 0; i < silenceDuration; i++) {
-				if (idy < BUFFER_SIZE2_2) buffer2_2[idy++] = 0;
-			}
-		}
-	
-		
-		switch (byte3) {
-				// Key '1'
-			case 0x16:
-				*LED_ptr = 0b0000000001; //LEDS off
-
-				buffer_ptr_1 = 0;
-				buffer_ptr_2 = 0;
-				
-				int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
-				int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
-
-				// Melody output (left speaker)
-				if (out_fifo_1 >= 128) {
-					for (int j = 0; j < 128; j++) {
-						*(audio_ptr + 3) = ((int)buffer1_1[buffer_ptr_1]) << 16;
-						buffer_ptr_1 = (buffer_ptr_1 + 1) % BUFFER_SIZE1_1;
-					}
-				}
-
-				// Bass output (right speaker)
-				if (out_fifo_2 >= 128) {
-					for (int j = 0; j < 128; j++) {
-						*(audio_ptr + 2) = ((int)buffer1_2[buffer_ptr_2]) << 16;
-						buffer_ptr_2 = (buffer_ptr_2 + 1) % BUFFER_SIZE1_2;
-					}
-				}
-
-				*(audio_ptr + 1) = *(audio_ptr + 1) | 0x00000002; // Set FIFO reset bit to 1
-        		*(audio_ptr + 1) = *(audio_ptr + 1) & (~0x00000002); // Then clear it back to 0
-				
-				break;
-
-				// Key '2'
-			case 0x1E: 
-				*LED_ptr = 0b0000000010; //LEDS off
-				//int out_fifo_1 = (*(audio_ptr + 1) & 0xFF0000) >> 16;
-				//int out_fifo_2 = (*(audio_ptr + 1) & 0xFF000000) >> 24;
-
-				buffer_ptr_1 = 0;
-				buffer_ptr_2 = 0;
-				
-					// Melody output (left speaker)
-					if (out_fifo_1 >= 128) {
-						for (int j = 0; j < 128; j++) {
-							*(audio_ptr + 3) = ((int)buffer2_1[buffer_ptr_1]) << 16;
-							buffer_ptr_1 = (buffer_ptr_1 + 1) % BUFFER_SIZE2_1;
-						}
-					}
-
-					// Bass output (right speaker)
-					if (out_fifo_2 >= 128) {
-						for (int j = 0; j < 128; j++) {
-							*(audio_ptr + 2) = ((int)buffer2_2[buffer_ptr_2]) << 16;
-							buffer_ptr_2 = (buffer_ptr_2 + 1) % BUFFER_SIZE2_2;
-						}
-					}
-				*(audio_ptr + 1) = *(audio_ptr + 1) | 0x00000002; // Set FIFO reset bit to 1
-        		*(audio_ptr + 1) = *(audio_ptr + 1) & (~0x00000002); // Then clear it back to 0
-					
-				break;
-				// Key '3'
-			case 0x26: 
-				*LED_ptr = 0b0000000100; //LEDS off
-				break;
-				// Key '4'
-			case 0x25:
-				*LED_ptr = 0b0000001000; //LEDS off
-				break;
-				// Key 'Space'
-			case 0x2E: 
-				break;
-				// Key 'Enter'
-			case 0x5A: 
-				*LED_ptr = 0b1111111111; //LEDS on
-				//play_song();
-				break;
-				// Key 'a'
-			case 0x1C: 
-				//play_song();
-				break;
-				// Key 'b'
-			case 0x32: 
-				break;
-				// Key 'c'
-			case 0x21: 
-				break;
-			default:
-				break;
-		}
-		// Display last byte on Red LEDs
-		*RLEDs = byte3;
+    // Dynamically allocate buffer memory
+    int bufferSize = SAMPLE_RATE * durationInSeconds;
+    short int *buffer = malloc(bufferSize * sizeof(short int) * notesCount);
+    if (!buffer) {
+        fprintf(stderr, "Memory allocation error\n");
+        return 1;
     }
 
+    // Generate waveform for each note
+    for (int noteIndex = 0; noteIndex < notesCount; noteIndex++) {
+        double frequency = notesFrequencies[noteIndex];
+        double phaseIncrement = 2 * PI * frequency / SAMPLE_RATE;
+        double phase = 0.0;
+        
+        for (int i = 0; i < bufferSize; i++) {
+            buffer[noteIndex * bufferSize + i] = (short int)(volume * getSineFromTable(phase));
+            phase += phaseIncrement;
+            if (phase >= 2 * PI) {
+                phase -= 2 * PI;
+            }
+        }
+    }
+
+    volatile int *PS2_ptr = (int *)0xFF200100; // PS/2 port address
+    unsigned char byte3 = 0;
+    int PS2_data, RVALID;
+
+    while (1) {
+        PS2_data = *(PS2_ptr);
+        RVALID = (PS2_data & 0x8000);
+        if (RVALID != 0) {
+            byte3 = PS2_data & 0xFF;
+
+            // Key 1 pressed
+            if (byte3 == 0x16) {
+                *LED_ptr = 0b1111111111; 
+                int buffer_ptr = 0;
+
+                // Check for space availability in output FIFO
+                while (buffer_ptr < bufferSize * notesCount) {
+                    int out_fifo_left = (*(audio_ptr + 1) & 0xFF0000) >> 16;
+                    int out_fifo_right = (*(audio_ptr + 1) & 0xFF000000) >> 24;
+
+                    if (out_fifo_left > 0 && out_fifo_right > 0) {
+                        *(audio_ptr + 2) = ((int)buffer[buffer_ptr]) << 16; // Left channel
+                        *(audio_ptr + 3) = ((int)buffer[buffer_ptr++]) << 16; // Right channel
+                    }
+                }
+                *LED_ptr = 0b0000000000;
+            }
+        }
+    }
+
+    free(buffer); // Free allocated memory
     return 0;
 }
